@@ -1,0 +1,1 @@
+require 'spree_elastic_search/search/elasticsearch'
