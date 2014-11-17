@@ -85,7 +85,7 @@ module Searchable
 
     def as_indexed_json(options={})
       hash = as_json({
-                         methods: [:id, :name, :meta_name, :category_name, :manufacturer_name,
+                         methods: [:id, :name, :meta_name, :category_name, :manufacturer_name, :permalink,
                                    :meta_description, :description, :taxon_ids, :taxon_names, :list_image, :price_per, :price_per_unit, :stars],
                          include: {
                              cached_manufacturer: { only: [:id, :taxonomy_id, :visible, :permalink, :name]},
