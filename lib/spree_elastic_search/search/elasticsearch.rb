@@ -8,9 +8,10 @@ module Spree
       def initialize(params={})
         @params = params
         @page = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
-        taxon_name = params[:id].split('/')[1].capitalize if params[:id].is_a? String
+        taxon = params.fetch(:id, '')
+        taxon_name = taxon.split('/')[1].try(:capitalize)
         options = {
-            taxon_name: taxon_name,
+            taxon_name: taxon_name || nil,
             properties: params[:properties],
             limit: params[:limit],
             }.merge(params).with_indifferent_access
