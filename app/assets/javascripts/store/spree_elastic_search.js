@@ -1,5 +1,7 @@
 //= require store/spree_frontend
 //= require twitter/typeahead
+//= require URI.min
+//= require ion.rangeSlider.min
 
 if (Spree === undefined) {
     var Spree = {}
@@ -60,4 +62,20 @@ $(function() {
             suggestion: function(data){ return '<a href="/products/'+data.link+'">'+data.brand+' '+ data.category +' – '+data.value+'</a>'; }
         }
     });
+
+    $("#price-range").ionRangeSlider({
+        onFinish: function (data) {
+            uri = URI(document.url)
+                .setSearch("preis_von", data.from)
+                .setSearch("preis_bis", data.to)
+            document.location = uri;
+        }
+    });
+
+    $("#sort").change(function(data) {
+        console.log(data);
+        uri = URI(document.url)
+            .setSearch("sort", data.target.value)
+        document.location = uri;
+    })
 });

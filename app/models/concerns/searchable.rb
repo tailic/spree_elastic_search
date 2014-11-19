@@ -152,7 +152,8 @@ module Searchable
         }
       else
         @search_definition[:query] = { filtered: { filter: { bool: { must: [] }} } }
-        @search_definition[:sort] = {_score: 'desc'}
+        @search_definition[:post_filter] = { }
+        #@search_definition[:sort] = {name: 'asc'}
       end
 
       if options[:taxon_name] && options[:taxon_name].present?
@@ -165,22 +166,32 @@ module Searchable
         @search_definition[:query][:filtered][:filter][:bool][:must] << f
       end
 
-      if options[:price_min] || options[:price_max]
+      if options[:preis_von] || options[:preis_bis]
         f = {
             range: {
                 price_per: {
-                    gte: options[:price_min].to_f || 0.0,
-                    lte: options[:price_max].to_f || 9999999999.0
+                    gte: options[:preis_von].to_f || 0.0,
+                    lte: options[:preis_bis].to_f || 9999999999.0
                 }
             }
         }
-        @search_definition[:query][:filtered][:filter][:bool][:must] << f
+        #@search_definition[:query][:filtered][:filter][:bool][:must] << f
+        @search_definition[:post_filter].merge! f
       end
 
 
       if options[:sort]
-        @search_definition[:sort] = {options[:sort] => 'desc'}
+        if options[:sort][0, 2] == 'a_'
+          order = 'asc'
+          sort = options[:sort].gsub /^a_/, ''
+        else
+          order = 'desc'
+          sort = options[:sort]
+        end
+        @search_definition[:sort] = {sort.strip => order}
         @search_definition[:track_scores] = true
+      else
+        @search_definition[:sort] = {name: 'asc'}
       end
 
       unless query.blank?
