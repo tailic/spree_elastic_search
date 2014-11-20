@@ -10,12 +10,14 @@ module Spree
         @page = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
         taxon = params.fetch(:id, '')
         taxon_name = taxon.split('/')[1].try(:capitalize)
+
         options = {
             taxon_name: taxon_name || nil,
-            properties: params[:properties],
+            properties: parse_property_params,
             limit: params[:limit],
             }.merge(params).with_indifferent_access
         @search_result = Spree::Product.elasticsearch(params[:keywords], options)
+        Rails.logger.debug ">>>>>>>>#{@search_result}"
       end
 
       def results
@@ -54,6 +56,14 @@ module Spree
       def per_page
         per_page = params[:per_page].to_i
         per_page > 0 ? per_page : Spree::Config[:products_per_page]
+      end
+
+      def parse_property_params
+        valid_params = @params.select{|k, v| Spree::Config.show_facets.include? k }
+        properties = valid_params.collect{|k, v| v.collect{|val| [k,val].join('||') }}
+
+        return nil unless properties.any?
+        properties
       end
 
     end

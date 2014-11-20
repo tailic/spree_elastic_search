@@ -120,7 +120,8 @@ module Searchable
                   terms: { field: 'taxon_names', size: 0 }
               },
               properties: {
-                  terms: { field: 'properties', size: 0 }
+                  terms: { field: 'properties', size: 0, min_doc_count: 0, order: { _term: 'asc' }
+      }
               },
               price_stats: {
                   stats: { field: 'price_per' }
@@ -152,7 +153,7 @@ module Searchable
         }
       else
         @search_definition[:query] = { filtered: { filter: { bool: { must: [] }} } }
-        @search_definition[:post_filter] = { }
+        @search_definition[:post_filter] = { bool: { must: [] } }
         #@search_definition[:sort] = {name: 'asc'}
       end
 
@@ -162,8 +163,10 @@ module Searchable
       end
 
       if options[:properties]
-        f= {term: {properties: options[:properties]}}
-        @search_definition[:query][:filtered][:filter][:bool][:must] << f
+        options[:properties].each do |prop|
+          f= {terms: {properties: prop}}
+          @search_definition[:query][:filtered][:filter][:bool][:must] << f
+        end
       end
 
       if options[:preis_von] || options[:preis_bis]
@@ -176,7 +179,8 @@ module Searchable
             }
         }
         #@search_definition[:query][:filtered][:filter][:bool][:must] << f
-        @search_definition[:post_filter].merge! f
+        #@search_definition[:post_filter].merge! f
+        @search_definition[:post_filter][:bool][:must] << f
       end
 
 
