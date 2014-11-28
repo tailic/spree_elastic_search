@@ -59,6 +59,17 @@ module Searchable
           indexes :tokenized, analyzer: 'simple'
         end
 
+        indexes :farbe, type: 'string', index: 'not_analyzed'
+        indexes :fuge, type: 'string', index: 'not_analyzed'
+        indexes :ausfuehrung, type: 'string', index: 'not_analyzed'
+        indexes :nutzungsklasse, type: 'string', index: 'not_analyzed'
+        indexes :verlegesystem, type: 'string', index: 'not_analyzed'
+
+        #indexes :specs, type: 'nested' do
+        #  indexes :key,   type: 'string', index: 'not_analyzed'
+        #  indexes :value, type: 'string', index: 'not_analyzed'
+        #end
+
       end
     end
 
@@ -88,7 +99,7 @@ module Searchable
                          methods: [:id, :name, :meta_name, :category_name, :manufacturer_name, :permalink,
                                    :meta_description, :description, :taxon_ids, :taxon_names, :list_image, :price_per, :price_per_unit, :stars],
                          include: {
-                             cached_manufacturer: { only: [:id, :taxonomy_id, :visible, :permalink, :name]},
+                             cached_manufacturer: {only: [:id, :taxonomy_id, :visible, :permalink, :name]},
                              variants: {
                                  only: [:sku],
                                  include: {
@@ -99,11 +110,18 @@ module Searchable
                      })
       hash['properties'] = product_properties.map do |pp|
         [pp.property.name, pp.value].join('||') if Spree::Config.show_facets.include?(pp.property.name)
+      end.compact
+
+      hash['property'] = product_properties.map do |pp|
+        [pp.property.name, pp.value].join(' ') if Spree::Config.show_facets.include?(pp.property.name)
+      end.compact
+
+      Spree::Config.show_facets.each do |k, v|
+        hash[k] = property(v)
       end
 
-      hash['property'] = product_properties.map { |pp| [pp.property.name, pp.value].join(' ') }
+      #hash['specs'] = product_properties.map { |pp| {key: pp.property.name, value: pp.value} if Spree::Config.show_facets.include?(pp.property.name) }.compact
       hash
-
     end
 
     # Search in title and content fields for `query`, include highlights in response
@@ -117,17 +135,58 @@ module Searchable
 
           aggs: {
               taxons: {
-                  terms: { field: 'taxon_names', size: 0 }
-              },
-              properties: {
-                  terms: { field: 'properties', size: 0, min_doc_count: 0, order: { _term: 'asc' }
-      }
+                  terms: {field: 'taxon_names', size: 0}
               },
               price_stats: {
-                  stats: { field: 'price_per' }
+                  stats: {field: 'price_per'}
               }
           }
       }
+
+      price = if options[:taxon_name].present?
+                {
+                    price: {
+                        filter: {
+                            and: []
+                        },
+                        aggs: {
+                            price: {
+                                terms: {field: 'price_per', size: 0, order: {_term: 'asc'}}
+                            }
+                        }
+                    }
+                }
+
+      else
+        {
+            price: {
+                terms: {field: 'price_per', size: 0, order: {_term: 'asc'}}
+            }
+        }
+      end
+      @search_definition[:aggs].merge!(price)
+
+      Spree::Config.show_facets.map do |k, v|
+        if options[:taxon_name].present?
+          facet = {
+              k => {
+                  filter: {and: []},
+                  aggs: {
+                      k => {
+                          terms: {field: k, size: 0}
+                      }
+                  }
+              }
+          }
+        else
+          facet = {
+              k => {
+                  terms: {field: k, size: 0}
+              }
+          }
+        end
+        @search_definition[:aggs].merge!(facet)
+      end
 
 
       unless query.blank?
@@ -148,24 +207,30 @@ module Searchable
                         ]
                     }
                 },
-              filter: {}
+                filter: {bool: {must: []}}
             }
         }
       else
-        @search_definition[:query] = { filtered: { filter: { bool: { must: [] }} } }
-        @search_definition[:post_filter] = { bool: { must: [] } }
-        #@search_definition[:sort] = {name: 'asc'}
+        @search_definition[:query] = {filtered: {filter: {bool: {must: []}}}}
+        @search_definition[:post_filter] = {bool: {must: []}}
+
       end
+      @search_definition[:filter] = {bool: {must: []}}
 
       if options[:taxon_name] && options[:taxon_name].present?
         f = {term: {taxon_names: [options[:taxon_name]]}}
+        Spree::Config.show_facets.map { |k, v| @search_definition[:aggs][k][:filter][:and] << f }
         @search_definition[:query][:filtered][:filter][:bool][:must] << f
+        @search_definition[:aggs][:price][:filter][:and] << f
       end
 
       if options[:properties]
-        options[:properties].each do |prop|
-          f= {terms: {properties: prop}}
-          @search_definition[:query][:filtered][:filter][:bool][:must] << f
+        options[:properties].each do |k, v|
+          f = {terms: {k => v}}
+          Spree::Config.show_facets.except(k.to_sym).map { |k, v| @search_definition[:aggs][k][:filter][:and] << f }
+          @search_definition[:filter][:bool][:must] << f
+          # TODO Price filter ned to be reduced by selected properties....
+          @search_definition[:aggs][:price][:filter][:and] << f
         end
       end
 
@@ -178,9 +243,8 @@ module Searchable
                 }
             }
         }
-        #@search_definition[:query][:filtered][:filter][:bool][:must] << f
-        #@search_definition[:post_filter].merge! f
-        @search_definition[:post_filter][:bool][:must] << f
+        @search_definition[:filter][:bool][:must] << f
+        Spree::Config.show_facets.map { |k, v| @search_definition[:aggs][k][:filter][:and] << f }
       end
 
 
@@ -215,7 +279,7 @@ module Searchable
             }
         }
       end
-Rails.logger.debug ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#{@search_definition.to_json}"
+      #Rails.logger.debug ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#{@search_definition.to_json}"
 
       __elasticsearch__.search(@search_definition)
     end
