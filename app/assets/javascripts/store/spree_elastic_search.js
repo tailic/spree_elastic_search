@@ -65,9 +65,10 @@ $(function() {
 
     $("#price-range").ionRangeSlider({
         onFinish: function (data) {
+            console.log(data)
             uri = URI(document.url)
-                .setSearch("preis_von", data.from)
-                .setSearch("preis_bis", data.to)
+                .setSearch("preis_von", data.from_value)
+                .setSearch("preis_bis", data.to_value)
             document.location = uri;
         }
     });
