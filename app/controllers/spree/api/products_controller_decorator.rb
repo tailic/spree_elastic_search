@@ -15,7 +15,7 @@ Spree::Api::ProductsController.class_eval do
   end
 
   def autocomplete
-      elasticsearch = Spree::Search::ElasticSearch.new({keywords: params[:q], taxon: params[:taxon]})
+      elasticsearch = Spree::Search::ElasticSearch.new({ keywords: params[:q], taxon_force: params[:taxon] })
       @products = elasticsearch.results
   end
 end
