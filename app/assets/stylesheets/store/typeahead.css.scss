@@ -2,68 +2,60 @@
 @import "store/ws-variables";
 @import "bootstrap/mixins";
 
-.tt-dropdown-menu
-{
+.tt-dropdown-menu {
   min-width: 160px;
   margin-top: 2px;
   padding: 5px 0;
   /* from BS dropdowns.less .dropdown-menu */
   /* background-color: @dropdownBackground;*/
   background-color: $dropdown-bg;
-
   /*
   border: 1px solid #ccc;
   border: 1px solid @dropdownBorder;
   border: 1px solid @dropdownBorder;*/
   border: 1px solid $dropdown-fallback-border; // IE8 fallback
   border: 1px solid $dropdown-border;
-
   *border-right-width: 2px;
   *border-bottom-width: 2px;
-
   /*BS2 replaced with BS dropdowns.less .dropdown-menu*/
   /*.border-radius(6px);*/
   border-radius: 6px;
-
   /*.box-shadow(0 5px 10px rgba(0,0,0,.2));
   -webkit-background-clip: padding-box;
   -moz-background-clip: padding;*/
   @include box-shadow(0 6px 12px rgba(0,0,0,.175));
-
   background-clip: padding-box;
-
 }
 
-.tt-suggestion
-{
+.tt-suggestion {
   display: block;
   padding: 3px 20px;
+  a {
+   color: #000;
+  }
 }
 
-.tt-suggestion.tt-cursor
-{
+
+.tt-suggestion.tt-cursor {
   /*color: @dropdownLinkColorHover;
   #gradient > .vertical(@dropdownLinkBackgroundHover, darken(@dropdownLinkBackgroundHover, 5%));*/
-  color: $dropdown-link-hover-color;
+  color: #000;
   background-color: $dropdown-link-hover-bg;
 }
 
-.tt-suggestion.tt-cursor a
-{
+.tt-suggestion.tt-cursor a {
   /*color: @dropdownBackground;*/
-  color: $dropdown-bg;
+  color: #000;
 }
 
-.tt-suggestion > p
-{
+.tt-suggestion > p {
   margin: 0;
   white-space: nowrap !important;     //dont conform suggestion to parent input width
 }
 
 
 /*http://stackoverflow.com/questions/18059161/css-issue-on-twitter-typeahead-with-bootstrap-3*/
-.twitter-typeahead
-{
+.twitter-typeahead {
   display: block;
   width: 100%; //BS 3 needs this to inherit this for children
 }
