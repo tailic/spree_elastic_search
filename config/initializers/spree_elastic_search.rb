@@ -4,7 +4,7 @@ Spree::Config.searcher_class = Spree::Search::ElasticSearch
 
 # Connect to specific Elasticsearch cluster
 ELASTICSEARCH_URL = ENV['ELASTICSEARCH_URL'] || 'http://localhost:9200'
-Elasticsearch::Model.client = Elasticsearch::Client.new host: ELASTICSEARCH_URL
+Elasticsearch::Model.client = Elasticsearch::Client.new host: ELASTICSEARCH_URL, transport_options: { request: { timeout: 1 } }
 # Print Curl-formatted traces in development into a file
 #
 if Rails.env.development?

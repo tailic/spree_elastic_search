@@ -28,16 +28,24 @@ module Spree
       end
 
       def retrieve_products
-        @search_result.page(@params[:page]).per(per_page)
+        begin
+          products = @search_result.page(@params[:page]).per(per_page)
+          return [] if products.empty?
+        rescue Faraday::TimeoutError => e
+          return []
+        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
+          return []
+        end
+        return products
       end
 
       def suggestions
-        return []
-        
         begin
           suggest = @search_result.response[:suggest]
+        rescue Faraday::TimeoutError => e
+          return []
         rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
-          suggest = nil
+          return []
         end
         return [] if suggest.nil?
 
@@ -48,14 +56,14 @@ module Spree
 
       def aggregations
         @aggregations || begin
-          aggs = @search_result.results.response.response['aggregations'].reject{|k, v| k.eql? 'price_stats'}
+          aggs = results.response.response['aggregations'].reject{|k, v| k.eql? 'price_stats'}
           @aggregations = aggs.collect do |name, buckets|
             next if name.eql? 'price_stats'
             buckets = buckets.properties if name == 'properties'
             buckets = buckets.buckets.collect do |b|
-              key, val = b[:key].split('||') if name == 'properties'
-              key, val = [name, b[:key_as_string]] if b[:key_as_string]
-              {key: key, value: val, count: b.doc_count}
+              # key, val = b[:key].split('||') if name == 'properties'
+              # key, val = [name, b[:key_as_string]] if b[:key_as_string]
+              # {key: key, value: val, count: b.doc_count}
             end
             { name => buckets.group_by{|b| b[:key]} }
           end.reduce({}, :merge)
@@ -63,7 +71,14 @@ module Spree
       end
 
       def prices
-        @search_result.results.response.response['aggregations']['price']['price'].buckets.collect{|p| p[:key]}
+        begin
+          stats = results.response.response['aggregations']['price']['price'].buckets.collect{|p| p[:key]}
+        rescue Faraday::TimeoutError => e
+          return []
+        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
+          return []
+        end
+        return stats
       end
 
       def lost_params
