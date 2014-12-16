@@ -33,6 +33,7 @@ module Spree
 
       def suggestions
         return []
+        
         begin
           suggest = @search_result.response[:suggest]
         rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
