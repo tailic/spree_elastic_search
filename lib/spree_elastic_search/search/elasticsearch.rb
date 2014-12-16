@@ -32,7 +32,11 @@ module Spree
       end
 
       def suggestions
-        suggest = @search_result.response[:suggest]
+        begin
+          suggest = @search_result.response[:suggest]
+        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
+          suggest = nil
+        end
         return [] if suggest.nil?
 
         suggest.map do |k, v|
