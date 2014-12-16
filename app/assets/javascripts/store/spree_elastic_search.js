@@ -73,9 +73,9 @@ $(function() {
     });
 
     $("#sort").change(function(data) {
-        console.log(data);
-        uri = URI(document.url)
-            .setSearch("sort", data.target.value)
-        document.location = uri;
+        if(data.target.value){
+            uri = URI(document.url).setSearch("sort", data.target.value);
+            document.location = uri
+        }
     })
 });
