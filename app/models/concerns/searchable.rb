@@ -87,7 +87,7 @@ module Searchable
     end
 
     def taxon_names
-      taxons.collect(&:permalink)
+      taxons.collect{|t| t.permalink.split('/').last}
     end
 
     def price_per
