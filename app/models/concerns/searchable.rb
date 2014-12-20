@@ -87,7 +87,7 @@ module Searchable
     end
 
     def taxon_names
-      taxons.collect(&:name)
+      taxons.collect(&:permalink)
     end
 
     def price_per
