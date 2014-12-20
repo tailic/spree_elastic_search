@@ -12,7 +12,7 @@ module Spree
         @property_params = parse_property_params
 
         taxon = params.fetch(:id, '')
-        taxon_name = taxon.split('/')[1].try(:capitalize)
+        taxon_name = taxon.split('/').last.try(:capitalize)
         #TODO need to force another taxon for autocompletion this is ugly
         taxon_name = Spree::Taxon.find(params[:taxon_force]).name if params[:taxon_force].present?
         options = {
