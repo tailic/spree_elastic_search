@@ -8,8 +8,11 @@ class Indexer
   include Sidekiq::Worker
   sidekiq_options queue: 'elasticsearch', retry: false, backtrace: true
 
+  es_url = 'http://10.15.186.16:9200' if Rails.env.production?
+  es_url = 'http://10.8.82.14:9200' if Rails.env.staging?
+  es_url = 'http://localhost:9200' if Rails.env.development?
   Logger = Sidekiq.logger.level == Logger::DEBUG ? Sidekiq.logger : nil
-  Client = Elasticsearch::Client.new host: (ENV['ELASTICSEARCH_URL'] || 'http://localhost:9200'), logger: Logger
+  Client = Elasticsearch::Client.new host: (es_url), logger: Logger
 
   def perform(operation, klass, record_id, options={})
     logger.debug [operation, "#{klass}##{record_id} #{options.inspect}"]
