@@ -8,11 +8,19 @@ class Indexer
   include Sidekiq::Worker
   sidekiq_options queue: 'elasticsearch', retry: false, backtrace: true
 
-  es_url = 'http://10.15.186.16:9200' if Rails.env.production?
-  es_url = 'http://10.8.82.14:9200' if Rails.env.staging?
-  es_url = 'http://localhost:9200' if Rails.env.development?
-  Logger = Sidekiq.logger.level == Logger::DEBUG ? Sidekiq.logger : nil
-  Client = Elasticsearch::Client.new host: (es_url), logger: Logger
+  logger = Sidekiq.logger.level == Logger::DEBUG ? Sidekiq.logger : nil
+  config = {
+      host: 'http://localhost:9200/',
+      transport_options: { request: { timeout: 5 } },
+      logger: logger
+  }
+
+  if File.exists?('config/elasticsearch.yml')
+    config.merge!(YAML.load_file('config/elasticsearch.yml').symbolize_keys)
+  end
+
+  Elasticsearch::Model.client = Elasticsearch::Client.new(config)
+  Client = Elasticsearch::Client.new config
 
   def perform(operation, klass, record_id, options={})
     logger.debug [operation, "#{klass}##{record_id} #{options.inspect}"]
