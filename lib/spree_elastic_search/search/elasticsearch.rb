@@ -16,7 +16,7 @@ module Spree
         #TODO need to force another taxon for autocompletion this is ugly
         taxon_name = Spree::Taxon.find(params[:taxon_force]).name if params[:taxon_force].present?
         options = {
-            taxon_name: taxon_name || nil,
+            taxon_name: taxon_name.downcase || nil,
             properties: @property_params,
             limit: params[:limit],
             }.merge(params).with_indifferent_access
