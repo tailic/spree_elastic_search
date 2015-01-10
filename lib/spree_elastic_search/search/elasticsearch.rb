@@ -16,7 +16,8 @@ module Spree
         #TODO need to force another taxon for autocompletion this is ugly
         taxon_name = Spree::Taxon.find(params[:taxon_force]).name if params[:taxon_force].present?
         options = {
-            taxon_name: taxon_name.downcase || nil,
+            #TODO maybe put id or full taxon name here to be more specific and index the id or full taxon name in Elasticsearch
+            taxon_name: taxon_name.try(:downcase) || nil,
             properties: @property_params,
             limit: params[:limit],
             }.merge(params).with_indifferent_access
