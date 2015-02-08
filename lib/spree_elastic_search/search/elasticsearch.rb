@@ -21,7 +21,7 @@ module Spree
             properties: @property_params,
             limit: params[:limit],
             }.merge(params).with_indifferent_access
-        @search_result = Spree::Product.elasticsearch(params[:keywords], options)
+        @search_result = Spree::Variant.elasticsearch(params[:keywords], options)
       end
 
       def results
