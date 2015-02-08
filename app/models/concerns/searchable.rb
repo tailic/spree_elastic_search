@@ -80,6 +80,10 @@ module Searchable
     after_commit lambda { Indexer.perform_async(:delete, self.class.to_s, self.id) }, on: :destroy
     after_touch lambda { Indexer.perform_async(:update, self.class.to_s, self.id) }
 
+    #def import
+    #  delegate :import, to: :__elasticsearch__ if self.is_a? Variant
+    #end
+
     def list_image(style = :list)
       #TODO Advanced image search in variants
       return "noimage/#{style.to_s}.png" if images.empty?
@@ -98,7 +102,7 @@ module Searchable
       hash = as_json({
                          methods: [:id, :name, :meta_name, :category_name, :manufacturer_name, :permalink,
                                    :meta_description, :description, :taxon_ids, :taxon_names, :list_image,
-                                   :price_per, :price_per_unit, :stars, :is_flooring?],
+                                   :price_per, :price_per_unit, :stars, :is_flooring?, :is_carpetfloor?, :reviews_count],
                          include: {
                              cached_manufacturer: {only: [:id, :taxonomy_id, :visible, :permalink, :name]},
                              variants: {
@@ -260,7 +264,7 @@ module Searchable
         @search_definition[:sort] = {sort.strip => order}
         @search_definition[:track_scores] = true
       else
-        @search_definition[:sort] = {name: 'asc'}
+        #@search_definition[:sort] = {name: 'asc'}
       end
 
       unless query.blank?
