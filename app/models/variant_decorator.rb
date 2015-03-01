@@ -1,7 +1,11 @@
 Spree::Variant.class_eval do
   include Searchable
 
-  scope :list, -> { joins(:prices, product: :option_types).where("spree_prices.amount > ? and (spree_option_types.presentation = ? or spree_variants.is_master = ?)", 0, "Farbe", true) }
+  scope :list, -> {
+    joins(:prices).includes(product: :option_types)
+        .where("spree_prices.amount > ? and (spree_option_types.presentation = ? or spree_variants.is_master = ?)", 0, "Farbe", true)
+  }
+
 
   def taxons
     product.taxons
@@ -13,6 +17,10 @@ Spree::Variant.class_eval do
 
   def cached_manufacturer
     product.cached_manufacturer
+  end
+
+  def manufacturer_name
+    cached_manufacturer.name
   end
 
   def variants
@@ -60,8 +68,8 @@ Spree::Variant.class_eval do
 
   #TODO refactor calculate on import > alternate prices gem now available!
   def price_per_unit(currency = Spree::Config[:currency])
-    return Spree::Money.new(price_in(currency)) unless is_flooring? || is_carpetfloor?
+    return Spree::Money.new(amount_in(currency)) unless is_flooring? || is_carpetfloor?
     return Spree::Money.new(amount_in(currency, Spree::PriceCategory.find_by(name: 'glattschnitt'))) if is_carpetfloor?
-    Spree::Money.new(price_in(currency).amount / content_per_package)
+    Spree::Money.new(amount_in(currency) / content_per_package)
   end
 end
