@@ -1,111 +1,110 @@
 module Spree
   module Search
     class ElasticSearch
+      attr_accessor :properties
       attr_accessor :current_user
       attr_accessor :current_currency
-      attr_accessor :params
-      attr_accessor :property_params
 
       def initialize(params={})
-        @params = params
-        @page = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
-        @property_params = parse_property_params
-
-        taxon = params.fetch(:id, '')
-        taxon_name = taxon.split('/').last
-        #TODO need to force another taxon for autocompletion this is ugly
-        taxon_name = Spree::Taxon.find(params[:taxon_force]).name if params[:taxon_force].present?
-        options = {
-            #TODO maybe put id or full taxon name here to be more specific and index the id or full taxon name in Elasticsearch
-            taxon_name: taxon_name.try(:downcase) || nil,
-            properties: @property_params,
-            limit: params[:limit],
-            }.merge(params).with_indifferent_access
-        @search_result = Spree::Variant.elasticsearch(params[:keywords], options)
-      end
-
-      def results
-        @search_result.results
+        self.current_currency = Spree::Config[:currency]
+        @properties = {}
+        prepare(params)
       end
 
       def retrieve_products
-        begin
-          products = @search_result.page(@params[:page]).per(per_page)
-          return [] if products.empty?
-        rescue Faraday::TimeoutError => e
-          return []
-        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
-          return []
-        end
-        return products
-      end
-
-      def suggestions
-        begin
-          suggest = @search_result.response[:suggest]
-        rescue Faraday::TimeoutError => e
-          return []
-        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
-          return []
-        end
-        return [] if suggest.nil?
-
-        suggest.map do |k, v|
-          v.collect{ |hashie| hashie.options }
-        end.flatten
-      end
-
-      def aggregations
-        @aggregations || begin
-          aggs = results.response.response['aggregations'].reject{|k, v| k.eql? 'price_stats'}
-          @aggregations = aggs.collect do |name, buckets|
-            next if name.eql? 'price_stats'
-            buckets = buckets.properties if name == 'properties'
-            buckets = buckets.buckets.collect do |b|
-              # key, val = b[:key].split('||') if name == 'properties'
-              # key, val = [name, b[:key_as_string]] if b[:key_as_string]
-              # {key: key, value: val, count: b.doc_count}
-            end
-            { name => buckets.group_by{|b| b[:key]} }
-          end.reduce({}, :merge)
-        end
+        query = keywords || ''
+        disjunctive = Spree::Config.disjunctive_facets
+        Rails.logger.warn ">>>>> params:#{search_params} query: #{query} refinements: #{refinements} disjfac: #{disjunctive}"
+        @products = Spree::Product.algolia_search_disjunctive_faceting(query, disjunctive, search_params, refinements)
       end
 
       def prices
-        begin
-          stats = results.response.response['aggregations']['price']['price'].buckets.collect{|p| p[:key]}
-        rescue Faraday::TimeoutError => e
-          return []
-        rescue Elasticsearch::Transport::Transport::Errors::NotFound => e
-          return []
-        end
-        return stats
+        disjunctive_facets['price_per'].keys.map{|k| k.to_d }.sort
       end
 
-      def lost_params
-        @lost_params || begin
-          choosen = property_params
-          aggs = results.response.response['aggregations']
-          available = aggs.reject{|k, v| ['price_stats', 'taxons'].include?(k) || !choosen.key?(k) }.collect do |a|
-            {a[0] => a[1].send(a[0]).buckets.collect{|v| v[:key]}}
-          end.compact.reduce( Hash.new, :merge)
+      def facets
+        @products.algolia_raw_answer['facets']
+      end
 
-          @lost_params = available.collect do |k, v|
-            cleaned_values = choosen[k].reject {|c| v.include?(c) }
-            {k => cleaned_values} if cleaned_values.present?
-          end.compact.reduce( Hash.new, :merge).with_indifferent_access
+      def disjunctive_facets
+        @products.algolia_raw_answer['disjunctiveFacets']
+      end
+
+      def search_request
+        query = keywords || ''
+        disjunctive = Spree::Config.disjunctive_facets
+        {
+            query: query,
+            disjunctiveFacets: disjunctive,
+            params: search_params,
+            refinements: refinements,
+            preis_von: price_filters['preis_von'].try(:to_d),
+            preis_bis: price_filters['preis_bis'].try(:to_d)
+        }
+      end
+
+      def method_missing(name)
+        if @properties.has_key? name
+          @properties[name]
+        else
+          super
         end
       end
 
       protected
 
-      def per_page
-        per_page = params[:per_page].to_i
-        per_page > 0 ? per_page : Spree::Config[:products_per_page]
+      def search_params
+        {
+            facetFilters: facet_filters,
+            tagFilters: tag_filters,
+            facets: '*',
+            maxValuesPerFacet: 9999999999,
+            numericFilters: numeric_filters,
+            page: page,
+            hitsPerPage: per_page
+        }
       end
 
-      def parse_property_params
-        @params.select{|k, v| Spree::Config.show_facets.keys.include? k.to_sym }
+      def refinements
+        filters
+      end
+
+      def tag_filters
+        if taxon
+          taxon_name = taxon.name.try(:downcase) || nil
+          return [taxon_name]
+        end
+        nil
+      end
+
+      def facet_filters
+        filters.collect do |k, v|
+          [k, v].join(':')
+        end
+      end
+
+      def numeric_filters
+        filters = []
+        if price_filters['preis_von'].present? && price_filters['preis_bis'].present?
+          filters << "price_per:#{price_filters['preis_von'].to_d} to #{price_filters['preis_bis'].to_d}"
+        elsif price_filters['preis_von'].present? && price_filters['preis_bis'].blank?
+          filters << "price_per>=#{price_filters['preis_von'].to_d}"
+        elsif price_filters['preis_von'].blank? && price_filters['preis_bis'].present?
+          filters << "price_per<=#{price_filters['preis_bis'].to_d}"
+        end
+        filters.join(',')
+      end
+
+      def prepare(params)
+        @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
+        @properties[:keywords] = params[:keywords]
+        @properties[:search] = params[:search]
+        @properties[:filters] = params.select{|k, v| (Spree::Config.show_facets.merge(:manufacturer_name => 'Hersteller')).keys.include?(k.to_sym) }
+        @properties[:price_filters] = params.select{|k, v| [:preis_von, :preis_bis].include?(k.to_sym) }
+
+        per_page = params[:per_page].to_i
+        @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
+        @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
       end
 
     end

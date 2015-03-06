@@ -84,23 +84,10 @@ module Searchable
     #  delegate :import, to: :__elasticsearch__ if self.is_a? Variant
     #end
 
-    def list_image(style = :list)
-      #TODO Advanced image search in variants
-      return "noimage/#{style.to_s}.png" if images.empty?
-      images.first.attachment(style)
-    end
-
-    def taxon_names
-      taxons.collect{|t| t.permalink.split('/').last}
-    end
-
-    def price_per
-      price_per_unit.money.to_f
-    end
 
     def as_indexed_json(options={})
       hash = as_json({
-                         methods: [:id, :name, :meta_name, :category_name, :manufacturer_name, :permalink,
+                         methods: [:id, :name, :meta_name, :category_name, :manufacturer_name, :permalink, :variant_thumbnails,
                                    :meta_description, :description, :taxon_ids, :taxon_names, :list_image,
                                    :price_per, :price_per_unit, :stars, :is_flooring?, :is_carpetfloor?, :reviews_count],
                          include: {
@@ -113,19 +100,11 @@ module Searchable
                              }
                          }
                      })
-      hash['properties'] = product_properties.map do |pp|
-        [pp.property.name, pp.value].join('||') if Spree::Config.show_facets.include?(pp.property.name)
-      end.compact
-
-      hash['property'] = product_properties.map do |pp|
-        [pp.property.name, pp.value].join(' ') if Spree::Config.show_facets.include?(pp.property.name)
-      end.compact
 
       Spree::Config.show_facets.each do |k, v|
         hash[k] = property(v)
       end
 
-      #hash['specs'] = product_properties.map { |pp| {key: pp.property.name, value: pp.value} if Spree::Config.show_facets.include?(pp.property.name) }.compact
       hash
     end
 
@@ -144,6 +123,9 @@ module Searchable
               },
               price_stats: {
                   stats: {field: 'price_per'}
+              },
+              manufacturers: {
+                  terms: {field: 'manufacturer_name'}
               }
           }
       }
@@ -234,7 +216,6 @@ module Searchable
           f = {terms: {k => v}}
           Spree::Config.show_facets.except(k.to_sym).map { |k, v| @search_definition[:aggs][k][:filter][:and] << f }
           @search_definition[:filter][:bool][:must] << f
-          # TODO Price filter ned to be reduced by selected properties....
           @search_definition[:aggs][:price][:filter][:and] << f
         end
       end
