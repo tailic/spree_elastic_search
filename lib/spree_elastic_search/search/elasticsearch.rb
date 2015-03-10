@@ -99,7 +99,7 @@ module Spree
         @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
         @properties[:keywords] = params[:keywords]
         @properties[:search] = params[:search]
-        @properties[:filters] = params.select{|k, v| (Spree::Config.show_facets.merge(:manufacturer_name => 'Hersteller')).keys.include?(k.to_sym) }
+        @properties[:filters] = params.select{|k, v| (Spree::Config.show_facets.merge(:hersteller => 'Hersteller')).keys.include?(k.to_sym) }
         @properties[:price_filters] = params.select{|k, v| [:preis_von, :preis_bis].include?(k.to_sym) }
 
         per_page = params[:per_page].to_i
