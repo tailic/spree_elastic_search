@@ -71,7 +71,7 @@ module Spree
 
       def tag_filters
         if taxon
-          taxon_name = taxon.name.try(:downcase) || nil
+          taxon_name = taxon.permalink.split('/').last || nil
           return [taxon_name]
         end
         nil
