@@ -1,4 +1,4 @@
-//= require store/spree_frontend
+//= require spree/frontend
 //= require twitter/typeahead
 //= require hogan
 //= require URI.min
