@@ -1,6 +1,6 @@
 /*
  *= require spree/frontend
- *= require store/typeahead
  *= require ion.rangeSlider
  *= require ion.rangeSlider.skinWS
+ *= require_tree .
 */

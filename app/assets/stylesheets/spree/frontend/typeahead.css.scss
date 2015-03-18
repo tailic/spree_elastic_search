@@ -1,5 +1,5 @@
 // TODO WHY cant BS3 files be used here (vars and mixins are not found maybe order of gems? require bs gem...?)
-@import "store/ws-variables";
+@import "spree/frontend/ws-variables";
 @import "bootstrap/mixins";
 
 .tt-dropdown-menu {
