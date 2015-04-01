@@ -1,3 +1,29 @@
+module AdditionalMethods
+  def self.extended(base)
+    class <<base
+      alias_method :raw_answer, :algolia_raw_answer unless method_defined? :raw_answer
+      alias_method :facets, :algolia_facets unless method_defined? :facets
+    end
+  end
+
+  def algolia_raw_answer
+    @algolia_json
+  end
+
+  def algolia_facets
+    @algolia_json['facets']
+  end
+
+  def algolia_disjuctive_facets
+    @algolia_json['disjunctiveFacets']
+  end
+
+  private
+  def algolia_init_raw_answer(json)
+    @algolia_json = json
+  end
+end
+
 module Spree
   module Search
     class ElasticSearch
@@ -14,8 +40,18 @@ module Spree
       def retrieve_products
         query = keywords || ''
         disjunctive = Spree::Config.disjunctive_facets
-        Rails.logger.warn ">>>>> params:#{search_params} query: #{query} refinements: #{refinements} disjfac: #{disjunctive}"
-        @products = Spree::Product.algolia_search_disjunctive_faceting(query, disjunctive, search_params, refinements)
+        @products = algolia_products_search(query, disjunctive)
+      end
+
+      def algolia_products_search(query, disjunctive)
+        page = search_params[:page]
+        page -= 1 if page > 0
+        json = Spree::Product.algolia_raw_search_disjunctive_faceting(query, disjunctive, search_params.merge({page: page}), refinements)
+        results = json['hits'].collect{ |h| Spree::AlgoliaProduct.new(h) }.compact
+        res = AlgoliaSearch::Pagination.create(results, json['nbHits'].to_i, { :page => json['page'] + 1, :per_page => json['hitsPerPage'] })
+        res.extend(AdditionalMethods)
+        res.send(:algolia_init_raw_answer, json)
+        res
       end
 
       def prices
@@ -60,7 +96,7 @@ module Spree
             facets: '*',
             maxValuesPerFacet: 9999999999,
             numericFilters: numeric_filters,
-            page: page,
+            page: page ,
             hitsPerPage: per_page
         }
       end
