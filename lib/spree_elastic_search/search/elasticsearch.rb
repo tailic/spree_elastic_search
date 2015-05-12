@@ -48,7 +48,8 @@ module Spree
         page -= 1 if page > 0
         json = Spree::Product.algolia_raw_search_disjunctive_faceting(query, disjunctive, search_params.merge({page: page}), refinements)
         results = json['hits'].collect{ |h| Spree::AlgoliaProduct.new(h) }.compact
-        res = AlgoliaSearch::Pagination.create(results, json['nbHits'].to_i, { :page => json['page'] + 1, :per_page => json['hitsPerPage'] })
+        fake_hits = [json['nbHits'].to_i, 1000].min
+        res = AlgoliaSearch::Pagination.create(results, fake_hits, { :page => json['page'] + 1, :per_page => json['hitsPerPage'] })
         res.extend(AdditionalMethods)
         res.send(:algolia_init_raw_answer, json)
         res
