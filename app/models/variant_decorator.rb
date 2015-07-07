@@ -1,5 +1,5 @@
 Spree::Variant.class_eval do
-  include Searchable
+  #include Searchable
 
   scope :list, -> {
     joins(:prices).includes(product: :option_types)
@@ -32,7 +32,10 @@ Spree::Variant.class_eval do
   end
 
   def property(x)
-    return option_values.first.presentation.split[0] if is_carpetfloor? && x == 'Farbe' && option_values.present?
+    if x == 'Farbe'
+      ov = option_values.includes(:option_type).where('spree_option_types.name LIKE ?', '%_color').first
+      return ov.presentation.split[0] if ov.present?
+    end
     product.property(x)
   end
 
