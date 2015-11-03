@@ -17,9 +17,6 @@ Gem::Specification.new do |s|
   s.requirements << 'none'
 
   s.add_dependency 'spree_core', '~> 2.2.0'
-  s.add_dependency 'elasticsearch'
-  s.add_dependency 'elasticsearch-model'
-  s.add_dependency 'elasticsearch-rails'
   s.add_dependency 'sidekiq'
   s.add_dependency 'twitter-typeahead-rails'
 
