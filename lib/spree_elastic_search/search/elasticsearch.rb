@@ -91,7 +91,7 @@ module Spree
       protected
 
       def algolia_search_result(query, disjunctive, page)
-        cache_key = Digest::SHA1.hexdigest([query, taxon.products.maximum(:updated_at), disjunctive.sort.flatten.join('_'), search_params.merge({page: page}).sort.flatten.join('_'), refinements.sort.flatten.join('_')].join('_'))
+        cache_key = Digest::SHA1.hexdigest([query, taxon.try(:products).try(:maximum, :updated_at), disjunctive.sort.flatten.join('_'), search_params.merge({page: page}).sort.flatten.join('_'), refinements.sort.flatten.join('_')].join('_'))
         Rails.cache.fetch("search_request/#{cache_key}") do
           Spree::Product.algolia_raw_search_disjunctive_faceting(query, disjunctive, search_params.merge({page: page}), refinements)
         end
