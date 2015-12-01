@@ -46,7 +46,7 @@ module Spree
       def algolia_products_search(query, disjunctive)
         page = search_params[:page]
         page -= 1 if page > 0
-        json = Spree::Product.algolia_raw_search_disjunctive_faceting(query, disjunctive, search_params.merge({page: page}), refinements)
+        json = algolia_search_result(query, disjunctive, page)
         results = json['hits'].collect{ |h| Spree::AlgoliaProduct.new(h) }.compact
         fake_hits = [json['nbHits'].to_i, 1000].min
         res = AlgoliaSearch::Pagination.create(results, fake_hits, { :page => json['page'] + 1, :per_page => json['hitsPerPage'] })
@@ -89,6 +89,13 @@ module Spree
       end
 
       protected
+
+      def algolia_search_result(query, disjunctive, page)
+        cache_key = Digest::SHA1.hexdigest([query, taxon.products.maximum(:updated_at), disjunctive.sort.flatten.join('_'), search_params.merge({page: page}).sort.flatten.join('_'), refinements.sort.flatten.join('_')].join('_'))
+        Rails.cache.fetch("search_request/#{cache_key}") do
+          Spree::Product.algolia_raw_search_disjunctive_faceting(query, disjunctive, search_params.merge({page: page}), refinements)
+        end
+      end
 
       def search_params
         {
@@ -136,7 +143,7 @@ module Spree
         @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
         @properties[:keywords] = params[:keywords]
         @properties[:search] = params[:search]
-        @properties[:filters] = params.select{|k, v| (Spree::Config.show_facets.merge(:hersteller => 'Hersteller')).keys.include?(k.to_sym) }
+        @properties[:filters] = params.select{|k, v| (Spree::Config.show_facets.merge(hersteller: 'Hersteller')).keys.include?(k.to_sym) }
         @properties[:price_filters] = params.select{|k, v| [:preis_von, :preis_bis].include?(k.to_sym) }
 
         per_page = params[:per_page].to_i
